@@ -3,7 +3,7 @@
 ITM 454 Natural Language Processing (Section 001), Final Project, Fall 2026
 Instructor: Prof. Monyrath BUNTOUN
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/SovisalHor123/itm454-restaurant-reviews/blob/main/ITM454%20Star%20Rating%20v6.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Visothh/itm454-restaurant-reviews/blob/main/ITM454%20Star%20Rating%20v6.ipynb)
 
 ## What this project does
 
