@@ -1,0 +1,40 @@
+# Data (too big, and the Yelp terms do not allow sharing it)
+data/
+*.tar
+*.json
+*.parquet
+Yelp JSON/
+
+# Trained models and training checkpoints
+models/
+checkpoint-*/
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.joblib
+*.pkl
+
+# Generated results (the notebook makes these again)
+# Our hand-labeled files are kept on purpose
+results/*
+!results/*_labeled.csv
+
+# Hugging Face / Gradio / Colab leftovers
+runs/
+wandb/
+flagged/
+.gradio/
+
+# Python and Jupyter
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# Office lock files and system files
+~$*
+.DS_Store
+Thumbs.db
+desktop.ini
