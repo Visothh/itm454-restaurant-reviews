@@ -1,0 +1,13 @@
+numpy
+pandas
+pyarrow
+matplotlib
+nltk
+scikit-learn
+torch
+transformers
+accelerate
+datasets
+gensim
+gradio
+joblib

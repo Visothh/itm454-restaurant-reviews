@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ITM454 Labeling Tool</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --muted:#667085; --line:#d9dde5; --accent:#2f6fde; --accent-ink:#fff;
+          --pos:#1f8a4c; --neg:#c63b3b; --mix:#b7791f; --none:#667085; --done:#e7f5ec; --todo:#fff; --cur:#2f6fde; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#14171d; --card:#1d222b; --ink:#e8ebf1; --muted:#9aa3b2; --line:#323a47;
+          --accent:#5b8ff0; --done:#1f3a2a; --todo:#1d222b; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { padding:14px 20px; border-bottom:1px solid var(--line); background:var(--card); display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+  header h1 { font-size:18px; margin:0; }
+  header .info { color:var(--muted); font-size:14px; }
+  main { max-width:1000px; margin:0 auto; padding:20px 16px 80px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px; margin-bottom:16px; }
+  .drop { border:2px dashed var(--line); border-radius:12px; padding:40px 20px; text-align:center; cursor:pointer; }
+  .drop.over { border-color:var(--accent); }
+  button { font:inherit; border:1px solid var(--line); background:var(--card); color:var(--ink); border-radius:8px; padding:8px 14px; cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  button.primary { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+  button.sel { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); font-weight:600; }
+  select, input { font:inherit; padding:6px 8px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--ink); }
+  label { font-size:14px; color:var(--muted); }
+  .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  .review { font-size:17px; line-height:1.65; white-space:pre-wrap; max-height:46vh; overflow:auto; padding:14px; border:1px solid var(--line); border-radius:8px; }
+  .meta { display:flex; gap:18px; color:var(--muted); font-size:14px; margin-bottom:10px; flex-wrap:wrap; }
+  .meta b { color:var(--ink); }
+  .q { margin-top:16px; }
+  .q .name { font-weight:600; margin-bottom:6px; }
+  .opts { display:flex; gap:8px; flex-wrap:wrap; }
+  .opts button { min-width:56px; }
+  .nav { display:flex; justify-content:space-between; align-items:center; margin-top:18px; gap:10px; flex-wrap:wrap; }
+  .grid { display:flex; flex-wrap:wrap; gap:4px; }
+  .grid button { width:38px; padding:4px 0; font-size:13px; background:var(--todo); }
+  .grid button.done { background:var(--done); }
+  .grid button.cur { outline:2px solid var(--cur); }
+  .help { color:var(--muted); font-size:14px; }
+  .help li { margin:2px 0; }
+  .bar { height:8px; background:var(--line); border-radius:4px; overflow:hidden; flex:1; min-width:120px; }
+  .bar > div { height:100%; background:var(--pos); }
+  .hidden { display:none; }
+  kbd { border:1px solid var(--line); border-bottom-width:2px; border-radius:4px; padding:0 5px; font-size:12px; }
+  .warn { color:var(--neg); font-weight:600; }
+</style>
+</head>
+<body>
+<header>
+  <h1>ITM454 Labeling Tool</h1>
+  <span class="info" id="hdr">Open one of the 3 CSV files to start</span>
+</header>
+<main>
+
+<!-- Step 1: open file -->
+<section class="card" id="openCard">
+  <div class="drop" id="drop">
+    <p style="font-size:18px;margin:0 0 6px"><b>Drop the CSV file here</b> or click to choose it</p>
+    <p class="help" style="margin:0">human_50_blank.csv, manual_100_blank.csv or error_sample_50.csv. Your work is saved in this browser as you go, so you can close the page and come back.</p>
+    <input type="file" id="file" accept=".csv" class="hidden">
+  </div>
+</section>
+
+<!-- Step 2: who are you -->
+<section class="card hidden" id="setupCard">
+  <h2 style="margin-top:0" id="taskTitle"></h2>
+  <div id="taskHelp" class="help"></div>
+  <div class="row" style="margin-top:12px">
+    <label>Your name <input id="who" placeholder="e.g. Soksan" size="14"></label>
+    <span id="colPick"></span>
+    <label>Rows from <input id="from" type="number" min="1" style="width:70px"></label>
+    <label>to <input id="to" type="number" min="1" style="width:70px"></label>
+    <button class="primary" id="start">Start labeling</button>
+  </div>
+  <p class="help" id="setupNote"></p>
+</section>
+
+<!-- Step 3: label -->
+<section class="hidden" id="labelArea">
+  <div class="card">
+    <div class="meta" id="meta"></div>
+    <div class="review" id="text"></div>
+    <div id="questions"></div>
+    <div class="nav">
+      <button id="prev">&larr; Previous <kbd>&larr;</kbd></button>
+      <span class="help" id="keys"></span>
+      <button id="next" class="primary">Next <kbd>&rarr;</kbd></button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="row" style="margin-bottom:10px">
+      <b id="progressTxt"></b><div class="bar"><div id="progressBar"></div></div>
+      <button class="primary" id="download">Download finished CSV</button>
+    </div>
+    <div class="grid" id="grid"></div>
+    <p class="help" id="dlNote" style="margin-bottom:0"></p>
+  </div>
+  <div class="card help" id="rules"></div>
+</section>
+</main>
+
+<script>
+// ---------- tiny CSV parser / writer (handles quotes, commas and newlines inside reviews) ----------
+function parseCSV(s) {
+  if (s.charCodeAt(0) === 0xFEFF) s = s.slice(1);
+  const rows = []; let row = [], f = "", q = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (q) {
+      if (c === '"') { if (s[i + 1] === '"') { f += '"'; i++; } else q = false; }
+      else f += c;
+    } else if (c === '"') q = true;
+    else if (c === ',') { row.push(f); f = ""; }
+    else if (c === '\n' || c === '\r') {
+      if (c === '\r' && s[i + 1] === '\n') i++;
+      row.push(f); rows.push(row); row = []; f = "";
+    } else f += c;
+  }
+  if (f !== "" || row.length) { row.push(f); rows.push(row); }
+  return rows.filter(r => !(r.length === 1 && r[0] === ""));
+}
+const cell = v => /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+const toCSV = (head, rows) => [head, ...rows].map(r => r.map(v => cell(v ?? "")).join(",")).join("\n") + "\n";
+
+// ---------- task definitions ----------
+const ASP = ["Food Quality", "Service", "Atmosphere"];
+const SENT = ["Positive", "Negative", "Mixed", "Not mentioned"];
+const CAUSES = ["subtle 3 vs 4", "sarcasm", "negation", "mixed review", "label noise", "long review cut at 128 tokens", "other"];
+const TASKS = {
+  human: {
+    title: "Blind test: guess the stars (1 to 5)",
+    help: "<p>Read each review and guess its star rating. Work alone, do not look the review up online and do not ask each other. This measures how well a human does compared with the model.</p>",
+    out: "human_50_labeled",
+    rules: "<b>Rules.</b> Pick the number of stars you think the writer gave. Go with your first impression; there is no right answer to look up. Keys <kbd>1</kbd> to <kbd>5</kbd> pick the stars and jump to the next review.",
+  },
+  manual: {
+    title: "Aspect labels: Food Quality, Service, Atmosphere",
+    help: "<p>For each review, say how the writer feels about each of the three aspects.</p>",
+    out: "manual_100_labeled",
+    rules: `<b>Rules.</b><ul>
+      <li><b>Positive / Negative</b>: the review is clearly good or bad about that aspect.</li>
+      <li><b>Mixed</b>: the review says both good and bad things about that aspect (e.g. "pasta was great, steak was dry").</li>
+      <li><b>Not mentioned</b>: the aspect is not talked about at all.</li>
+      <li><b>Food Quality</b> = taste, freshness, temperature, portions, menu. <b>Service</b> = staff, waiting time, ordering, delivery. <b>Atmosphere</b> = decor, noise, music, vibe, cleanliness of the room. Price and location are none of these.</li>
+      <li>Label what the text says, not what you think the stars were.</li></ul>
+      Keys: <kbd>P</kbd> Positive, <kbd>N</kbd> Negative, <kbd>M</kbd> Mixed, <kbd>X</kbd> Not mentioned, for the highlighted aspect (it moves down by itself).`,
+  },
+  error: {
+    title: "Why did the model get it wrong?",
+    help: "<p>The model predicted the wrong number of stars for these reviews. Pick the <b>one</b> main reason.</p>",
+    out: "error_sample_50_labeled",
+    rules: `<b>Causes.</b><ul>
+      <li><b>subtle 3 vs 4</b>: the review is honestly in between; even a human could pick either.</li>
+      <li><b>sarcasm</b>: praise that is really a complaint, or the other way round.</li>
+      <li><b>negation</b>: "not bad", "wasn't great", "never disappointed" confused the model.</li>
+      <li><b>mixed review</b>: many good and bad points, so the overall stars are hard to read.</li>
+      <li><b>label noise</b>: the text clearly does not match the stars the writer gave.</li>
+      <li><b>long review cut at 128 tokens</b>: long review (n_words over about 100) where the key part is near the end.</li>
+      <li><b>other</b>: none of the above.</li></ul>
+      Keys <kbd>1</kbd> to <kbd>7</kbd> pick a cause in this order and jump to the next review.`,
+  },
+};
+
+// ---------- state ----------
+let head = [], rows = [], fileName = "", kind = "", cols = [], idx = 0, lo = 0, hi = 0, focusQ = 0;
+const $ = id => document.getElementById(id);
+const store = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+                set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+const key = () => `itm454:${fileName}:${cols.join("|")}`;
+
+function detect(h) {
+  if (h.includes("cause")) return "error";
+  if (h.some(c => c.endsWith("_gold"))) return "manual";
+  if (h.some(c => c.startsWith("guess_"))) return "human";
+  return "";
+}
+
+function load(file) {
+  const r = new FileReader();
+  r.onload = () => {
+    const all = parseCSV(r.result);
+    head = all[0]; rows = all.slice(1).map(x => { while (x.length < head.length) x.push(""); return x; });
+    fileName = file.name; kind = detect(head);
+    if (!kind || !head.includes("text")) { alert("This does not look like one of the 3 labeling files. Please open human_50_blank.csv, manual_100_blank.csv or error_sample_50.csv."); return; }
+    setup();
+  };
+  r.readAsText(file, "utf-8");
+}
+
+function setup() {
+  const t = TASKS[kind];
+  $("openCard").classList.add("hidden"); $("setupCard").classList.remove("hidden");
+  $("taskTitle").textContent = t.title; $("taskHelp").innerHTML = t.help;
+  $("hdr").textContent = `${fileName}: ${rows.length} reviews`;
+  $("from").value = 1; $("to").value = rows.length;
+  let pick = "";
+  if (kind === "human") {
+    if (!head.includes("guess_5")) { head.push("guess_5"); rows.forEach(r => r.push("")); }
+    const g = head.filter(c => c.startsWith("guess_"));
+    pick = `<label>Your column <select id="col">${g.map(c => `<option>${c}</option>`).join("")}</select></label>`;
+    $("setupNote").textContent = "Ask the group which guess_ column is yours, so two people do not use the same one.";
+  } else if (kind === "manual") {
+    pick = `<label>Columns <select id="col"><option value="_gold">main labels (_gold)</option><option value="_gold2">second labeler (_gold2)</option></select></label>`;
+    $("setupNote").textContent = "Use the rows you were given. Only the second labeler for agreement picks _gold2.";
+  } else {
+    $("setupNote").textContent = "Use the rows you were given, or keep 1 to " + rows.length + " if you are doing all of them.";
+  }
+  $("colPick").innerHTML = pick;
+  try { $("who").value = localStorage.getItem("itm454:who") || ""; } catch (e) {}
+}
+
+function start() {
+  const who = $("who").value.trim();
+  if (!who) { alert("Please type your name first."); return; }
+  try { localStorage.setItem("itm454:who", who); } catch (e) {}
+  lo = Math.max(1, +$("from").value || 1) - 1; hi = Math.min(rows.length, +$("to").value || rows.length);
+  if (lo >= hi) { alert("Rows 'from' must be smaller than 'to'."); return; }
+  if (kind === "human") cols = [$("col").value];
+  else if (kind === "manual") cols = ASP.map(a => a + $("col").value);
+  else cols = ["cause"];
+  cols.forEach(c => { if (!head.includes(c)) { head.push(c); rows.forEach(r => r.push("")); } });
+  // restore ALL earlier work on this file in this browser (also other sessions, e.g. _gold then _gold2),
+  // so one download holds everything this person did
+  const prefix = `itm454:${fileName}:`;
+  let keys = [];
+  try { for (let j = 0; j < localStorage.length; j++) { const k = localStorage.key(j); if (k && k.startsWith(prefix)) keys.push(k); } } catch (e) {}
+  for (const k of keys) {
+    const kc = k.slice(prefix.length).split("|"), saved = store.get(k);
+    if (!saved) continue;
+    kc.forEach(c => { if (!head.includes(c)) { head.push(c); rows.forEach(r => r.push("")); } });
+    for (const [i, vals] of Object.entries(saved)) kc.forEach((c, j) => { if (vals[j] && rows[i]) rows[i][head.indexOf(c)] = vals[j]; });
+  }
+  $("setupCard").classList.add("hidden"); $("labelArea").classList.remove("hidden");
+  $("hdr").textContent = `${fileName} · ${who} · ${cols.join(", ")} · rows ${lo + 1} to ${hi}`;
+  $("rules").innerHTML = TASKS[kind].rules;
+  $("keys").innerHTML = kind === "manual" ? "<kbd>P</kbd> <kbd>N</kbd> <kbd>M</kbd> <kbd>X</kbd>" : kind === "human" ? "<kbd>1</kbd>–<kbd>5</kbd>" : "<kbd>1</kbd>–<kbd>7</kbd>";
+  idx = firstEmpty(); render();
+}
+
+const val = (i, c) => rows[i][head.indexOf(c)];
+const isDone = i => cols.every(c => val(i, c));
+const firstEmpty = () => { for (let i = lo; i < hi; i++) if (!isDone(i)) return i; return lo; };
+
+function save() {
+  const out = {};
+  for (let i = lo; i < hi; i++) { const v = cols.map(c => val(i, c)); if (v.some(Boolean)) out[i] = v; }
+  store.set(key(), out);
+}
+
+function setVal(c, v) {
+  rows[idx][head.indexOf(c)] = val(idx, c) === v ? "" : v;   // click again to clear
+  save(); render();
+}
+
+function render() {
+  const r = rows[idx], H = c => r[head.indexOf(c)] ?? "";
+  let meta = `<span>Review <b>${idx + 1}</b> of ${rows.length}</span>`;
+  if (kind === "error") meta += `<span>Real stars <b>${H("y_true")}</b></span><span>Model said <b>${H("y_pred")}</b></span><span>Length <b>${H("n_words")}</b> words</span>`;
+  $("meta").innerHTML = meta;
+  $("text").textContent = H("text");
+  $("text").scrollTop = 0;
+  let q = "";
+  if (kind === "human") {
+    q = `<div class="q"><div class="name">How many stars? (${cols[0]})</div><div class="opts">${[1,2,3,4,5].map(s =>
+      `<button data-c="${cols[0]}" data-v="${s}" class="${H(cols[0]) == s ? "sel" : ""}">${"★".repeat(s)} ${s}</button>`).join("")}</div></div>`;
+  } else if (kind === "manual") {
+    if (focusQ >= cols.length) focusQ = 0;
+    q = cols.map((c, k) => `<div class="q" style="${k === focusQ ? "border-left:3px solid var(--accent);padding-left:10px" : "padding-left:13px"}">
+      <div class="name">${ASP[k]}</div><div class="opts">${SENT.map(s =>
+      `<button data-c="${c}" data-v="${s}" class="${H(c) === s ? "sel" : ""}">${s}</button>`).join("")}</div></div>`).join("");
+  } else {
+    q = `<div class="q"><div class="name">Main cause</div><div class="opts">${CAUSES.map((s, k) =>
+      `<button data-c="cause" data-v="${s}" class="${H("cause") === s ? "sel" : ""}">${k + 1}. ${s}</button>`).join("")}</div></div>`;
+  }
+  $("questions").innerHTML = q;
+  $("questions").querySelectorAll("button").forEach(b => b.onclick = () => {
+    setVal(b.dataset.c, b.dataset.v);
+    if (kind === "manual") focusQ = cols.indexOf(b.dataset.c) + 1;
+  });
+  $("prev").disabled = idx <= lo; $("next").disabled = idx >= hi - 1;
+  // progress
+  let done = 0, g = "";
+  for (let i = lo; i < hi; i++) { const d = isDone(i); done += d;
+    g += `<button data-i="${i}" class="${d ? "done" : ""} ${i === idx ? "cur" : ""}">${i + 1}</button>`; }
+  $("grid").innerHTML = g;
+  $("grid").querySelectorAll("button").forEach(b => b.onclick = () => go(+b.dataset.i));
+  const n = hi - lo;
+  $("progressTxt").textContent = `${done} of ${n} done`;
+  $("progressBar").style.width = (100 * done / n) + "%";
+  $("dlNote").innerHTML = done < n ? `<span class="warn">${n - done} still empty.</span> You can download anyway and finish later; your answers are also kept in this browser.`
+    : "All done! Download the CSV and send it back on Telegram.";
+}
+
+function go(i) { idx = Math.max(lo, Math.min(hi - 1, i)); focusQ = 0; render(); }
+
+function download() {
+  const who = $("who").value.trim() || "me";
+  const name = `${TASKS[kind].out}_${who.replace(/[^\w-]+/g, "")}.csv`;
+  const blob = new Blob([toCSV(head, rows)], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  $("dlNote").innerHTML = `Saved as <b>${name}</b> in your Downloads folder. Send that file back on Telegram.`;
+}
+
+// ---------- events ----------
+$("drop").onclick = () => $("file").click();
+$("file").onchange = e => e.target.files[0] && load(e.target.files[0]);
+["dragover", "dragenter"].forEach(ev => $("drop").addEventListener(ev, e => { e.preventDefault(); $("drop").classList.add("over"); }));
+["dragleave", "drop"].forEach(ev => $("drop").addEventListener(ev, e => { e.preventDefault(); $("drop").classList.remove("over"); }));
+$("drop").addEventListener("drop", e => e.dataTransfer.files[0] && load(e.dataTransfer.files[0]));
+$("start").onclick = start;
+$("prev").onclick = () => go(idx - 1);
+$("next").onclick = () => go(idx + 1);
+$("download").onclick = download;
+document.addEventListener("keydown", e => {
+  if ($("labelArea").classList.contains("hidden") || e.target.tagName === "INPUT" || e.ctrlKey || e.metaKey || e.altKey) return;
+  const k = e.key.toLowerCase();
+  if (k === "arrowright") return go(idx + 1);
+  if (k === "arrowleft") return go(idx - 1);
+  if (kind === "human" && "12345".includes(k) && k) { setVal(cols[0], k); setTimeout(() => go(idx + 1), 150); }
+  if (kind === "error" && "1234567".includes(k) && k) { setVal("cause", CAUSES[+k - 1]); setTimeout(() => go(idx + 1), 150); }
+  if (kind === "manual") {
+    const m = { p: "Positive", n: "Negative", m: "Mixed", x: "Not mentioned" }[k];
+    if (m) { const c = cols[focusQ]; rows[idx][head.indexOf(c)] = m; save(); focusQ++;
+      if (focusQ >= cols.length) { render(); setTimeout(() => go(idx + 1), 150); } else render(); }
+  }
+});
+window.addEventListener("beforeunload", save);
+</script>
+</body>
+</html>
